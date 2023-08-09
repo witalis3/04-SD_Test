@@ -7,12 +7,13 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.
+  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
+  * All rights reserved.</center></h2>
   *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                             www.st.com/SLA0044
   *
   ******************************************************************************
   */
@@ -22,7 +23,7 @@
 #include "usbd_storage_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
+#include "sdmmc.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -67,7 +68,7 @@
 #define STORAGE_BLK_SIZ                  0x200
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
-
+#define SD_READ_TIMEOUT                  100U
 /* USER CODE END PRIVATE_DEFINES */
 
 /**
@@ -95,7 +96,7 @@
 /* USER CODE BEGIN INQUIRY_DATA_FS */
 /** USB Mass storage Standard Inquiry Data. */
 const int8_t STORAGE_Inquirydata_FS[] = {/* 36 */
-
+  
   /* LUN 0 */
   0x00,
   0x80,
@@ -103,13 +104,13 @@ const int8_t STORAGE_Inquirydata_FS[] = {/* 36 */
   0x02,
   (STANDARD_INQUIRY_DATA_LEN - 5),
   0x00,
-  0x00,
+  0x00,	
   0x00,
   'S', 'T', 'M', ' ', ' ', ' ', ' ', ' ', /* Manufacturer : 8 bytes */
   'P', 'r', 'o', 'd', 'u', 'c', 't', ' ', /* Product      : 16 Bytes */
   ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
   '0', '.', '0' ,'1'                      /* Version      : 4 Bytes */
-};
+}; 
 /* USER CODE END INQUIRY_DATA_FS */
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
@@ -177,8 +178,6 @@ USBD_StorageTypeDef USBD_Storage_Interface_fops_FS =
 int8_t STORAGE_Init_FS(uint8_t lun)
 {
   /* USER CODE BEGIN 2 */
- UNUSED(lun);
-
   return (USBD_OK);
   /* USER CODE END 2 */
 }
@@ -193,11 +192,15 @@ int8_t STORAGE_Init_FS(uint8_t lun)
 int8_t STORAGE_GetCapacity_FS(uint8_t lun, uint32_t *block_num, uint16_t *block_size)
 {
   /* USER CODE BEGIN 3 */
-  UNUSED(lun);
+	HAL_SD_CardInfoTypeDef CardInfo;
+	if(HAL_SD_GetCardInfo(&hsd1, &CardInfo) != HAL_OK)
+	{
+		return -1;
+	}
+  *block_num  = CardInfo.LogBlockNbr - 1;
+  *block_size = CardInfo.LogBlockSize;
+  return 0;
 
-  *block_num  = STORAGE_BLK_NBR;
-  *block_size = STORAGE_BLK_SIZ;
-  return (USBD_OK);
   /* USER CODE END 3 */
 }
 
@@ -209,9 +212,10 @@ int8_t STORAGE_GetCapacity_FS(uint8_t lun, uint32_t *block_num, uint16_t *block_
 int8_t STORAGE_IsReady_FS(uint8_t lun)
 {
   /* USER CODE BEGIN 4 */
-  UNUSED(lun);
-
-  return (USBD_OK);
+	if(HAL_SD_GetCardState(&hsd1) == HAL_SD_CARD_TRANSFER )
+    return 0;
+	else
+		return -1;
   /* USER CODE END 4 */
 }
 
@@ -223,8 +227,6 @@ int8_t STORAGE_IsReady_FS(uint8_t lun)
 int8_t STORAGE_IsWriteProtected_FS(uint8_t lun)
 {
   /* USER CODE BEGIN 5 */
-  UNUSED(lun);
-
   return (USBD_OK);
   /* USER CODE END 5 */
 }
@@ -240,12 +242,14 @@ int8_t STORAGE_IsWriteProtected_FS(uint8_t lun)
 int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 6 */
-  UNUSED(lun);
-  UNUSED(buf);
-  UNUSED(blk_addr);
-  UNUSED(blk_len);
-
-  return (USBD_OK);
+	if(HAL_SD_ReadBlocks(&hsd1, buf, blk_addr, blk_len, SD_READ_TIMEOUT*blk_len) != HAL_OK)
+	{
+		return -1;
+	}
+	while (HAL_SD_GetCardState(&hsd1) != HAL_SD_CARD_TRANSFER)
+	{
+	}
+  return 0;
   /* USER CODE END 6 */
 }
 
@@ -260,12 +264,14 @@ int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t bl
 int8_t STORAGE_Write_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */
-  UNUSED(lun);
-  UNUSED(buf);
-  UNUSED(blk_addr);
-  UNUSED(blk_len);
-
-  return (USBD_OK);
+	if(HAL_SD_WriteBlocks(&hsd1, buf, blk_addr, blk_len, SD_READ_TIMEOUT*blk_len) != HAL_OK)
+	{
+		return -1;
+	}
+	while (HAL_SD_GetCardState(&hsd1) != HAL_SD_CARD_TRANSFER)
+	{
+	}
+  return 0;
   /* USER CODE END 7 */
 }
 
